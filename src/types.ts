@@ -13,3 +13,8 @@ export interface NetworkLog {
   error?: string;
   cookies?: string;
 }
+
+export enum NetWorkClient {
+  Fetch = "fetch",
+  XHR = "xhr",
+}

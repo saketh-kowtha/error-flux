@@ -1,4 +1,4 @@
-import { nanoid } from "../../node_modules/nanoid/index";
+import nanoid from "nanoid";
 
 export default function genUUID() {
   return nanoid();

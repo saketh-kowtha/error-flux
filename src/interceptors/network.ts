@@ -3,8 +3,8 @@
  * Captures all XHR & Fetch calls, logging success & error cases.
  */
 
-import { nanoid } from "../../node_modules/nanoid/index";
-import { NetworkLog } from "../types";
+import { NetWorkClient, NetworkLog } from "../types";
+import genUUID from "../utils/gen-uuid";
 
 function getAllResponseHeaders(xhr: XMLHttpRequest): Record<string, string> {
   const headers = {};
@@ -18,19 +18,20 @@ function getAllResponseHeaders(xhr: XMLHttpRequest): Record<string, string> {
   return headers as Record<string, string>;
 }
 
-const errorFluxNetworkInterceptor = () => {
+// Utility to generate unique request IDs
+function generateRequestId(): string {
+  return genUUID();
+}
+
+const errorFluxNetworkInterceptor = ({
+  pattern,
+}: {
+  pattern: string | RegExp;
+}) => {
   const originalFetch = window.fetch;
   const originalXHR = window.XMLHttpRequest;
   const logs: NetworkLog[] = [];
 
-  // Utility to generate unique request IDs
-  function generateRequestId(): string {
-    return nanoid();
-  }
-
-  /**
-   * MonkeyPatch Fetch API
-   */
   window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
     const requestId = generateRequestId();
     const startTime = performance.now();
@@ -39,23 +40,26 @@ const errorFluxNetworkInterceptor = () => {
       .then(async (response) => {
         const clonedResponse = response.clone();
         const responseData = await clonedResponse.text();
-
-        logs.push({
-          id: requestId,
-          type: "fetch",
-          url: typeof input === "string" ? input : input.toString(),
-          method: init?.method || "GET",
-          requestHeaders: init?.headers
-            ? Object.fromEntries(new Headers(init.headers).entries())
-            : {},
-          requestBody: init?.body || null,
-          responseHeaders: Object.fromEntries(clonedResponse.headers.entries()),
-          responseBody: responseData,
-          status: clonedResponse.status,
-          duration: performance.now() - startTime,
-          success: clonedResponse.ok,
-          cookies: document.cookie,
-        });
+        if (clonedResponse.url.match(pattern)) {
+          logs.push({
+            id: requestId,
+            type: NetWorkClient.Fetch,
+            url: typeof input === "string" ? input : input.toString(),
+            method: init?.method || "GET",
+            requestHeaders: init?.headers
+              ? Object.fromEntries(new Headers(init.headers).entries())
+              : {},
+            requestBody: init?.body || null,
+            responseHeaders: Object.fromEntries(
+              clonedResponse.headers.entries()
+            ),
+            responseBody: responseData,
+            status: clonedResponse.status,
+            duration: performance.now() - startTime,
+            success: clonedResponse.ok,
+            cookies: document.cookie,
+          });
+        }
 
         return response;
       })
@@ -67,19 +71,20 @@ const errorFluxNetworkInterceptor = () => {
             : (error as any).status ||
               ((error as any).response && (error as any).response.status) ||
               500;
-
-        logs.push({
-          id: requestId,
-          type: "fetch",
-          url: typeof input === "string" ? input : input.toString(),
-          method: init?.method || "GET",
-          error: error.message,
-          duration: performance.now() - startTime,
-          success: false,
-          requestBody: null,
-          status: status, // Actual HTTP error status or 500 as fallback
-          cookies: document.cookie,
-        });
+        if ((error as any).response.url.match(pattern)) {
+          logs.push({
+            id: requestId,
+            type: NetWorkClient.Fetch,
+            url: typeof input === "string" ? input : input.toString(),
+            method: init?.method || "GET",
+            error: error.message,
+            duration: performance.now() - startTime,
+            success: false,
+            requestBody: null,
+            status, // Actual HTTP error status or 500 as fallback
+            cookies: document.cookie,
+          });
+        }
         throw error;
       });
   };
@@ -115,7 +120,7 @@ const errorFluxNetworkInterceptor = () => {
       this.addEventListener("loadend", () => {
         logs.push({
           id: this.requestId,
-          type: "xhr",
+          type: NetWorkClient.XHR,
           url: this._url,
           method: this._method,
           requestBody: body || null,
@@ -131,7 +136,7 @@ const errorFluxNetworkInterceptor = () => {
       this.addEventListener("error", () => {
         logs.push({
           id: this.requestId,
-          type: "xhr",
+          type: NetWorkClient.XHR,
           url: this._url,
           method: this._method,
           error: "Network error",

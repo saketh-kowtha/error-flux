@@ -1,7 +1,6 @@
 {
   "name": "error-flux",
   "description": "Network request interceptor and logger for web applications",
-  "type": "module",
   "version": "0.0.1",
   "module": "./src/index.ts",
   "main": "./dist/index.js",
@@ -25,13 +24,14 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/username/error-flux.git"
+    "url": "git+https://github.com/saketh-kowtha/error-flux.git"
   },
   "bugs": {
-    "url": "https://github.com/username/error-flux/issues"
+    "url": "https://github.com/saketh-kowtha/error-flux/issues"
   },
-  "homepage": "https://github.com/username/error-flux#readme",
+  "homepage": "https://github.com/saketh-kowtha/error-flux#readme",
   "devDependencies": {
+    "@types/nanoid": "^2.1.0",
     "@types/node": "^22.13.4",
     "esbuild": "^0.25.0",
     "tsup": "^8.3.6",

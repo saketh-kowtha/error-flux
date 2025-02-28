@@ -2,50 +2,53 @@ import { StorageTypes } from "./../types";
 import { saveUnhandledErrors, saveConsoleErrors } from "../db/index";
 import store from "../state/store";
 import genUUID from "../utils/gen-uuid";
+import { runLowPriorityTask } from "../utils/low-priority";
 
 const errorLogs = {
   async saveError(storeName: string, errors: any[]) {
-    const { dbName, storageType } = store.getState();
-    switch (storageType) {
-      case StorageTypes.LocalStorage:
-        try {
-          const dbData = JSON.parse(localStorage.getItem(dbName) || "{}");
-          const existingErrors = dbData[storeName] || [];
-          existingErrors.push({
-            id: genUUID(),
-            errors,
-            timestamp: new Date().toISOString(),
-          });
-          dbData[storeName] = existingErrors;
-          localStorage.setItem(dbName, JSON.stringify(dbData));
-        } catch (err) {
-          console.error("Failed to save to localStorage:", err);
-        }
-        break;
+    runLowPriorityTask(async () => {
+      const { dbName, storageType } = store.getState();
+      switch (storageType) {
+        case StorageTypes.LocalStorage:
+          try {
+            const dbData = JSON.parse(localStorage.getItem(dbName) || "{}");
+            const existingErrors = dbData[storeName] || [];
+            existingErrors.push({
+              id: genUUID(),
+              errors,
+              timestamp: new Date().toISOString(),
+            });
+            dbData[storeName] = existingErrors;
+            localStorage.setItem(dbName, JSON.stringify(dbData));
+          } catch (err) {
+            console.error("Failed to save to localStorage:", err);
+          }
+          break;
 
-      case StorageTypes.SessionStorage:
-        try {
-          const dbData = JSON.parse(sessionStorage.getItem(dbName) || "{}");
-          const existingErrors = dbData[storeName] || [];
-          existingErrors.push({
-            id: genUUID(),
-            errors,
-            timestamp: new Date().toISOString(),
-          });
-          dbData[storeName] = existingErrors;
-          sessionStorage.setItem(dbName, JSON.stringify(dbData));
-        } catch (err) {
-          console.error("Failed to save to sessionStorage:", err);
-        }
-        break;
-      case StorageTypes.IndexedDB:
-        if (storeName === store.getState().storeName.consoleErrors) {
-          await saveConsoleErrors(errors);
-        } else if (storeName === store.getState().storeName.unhandledErrors) {
-          await saveUnhandledErrors(errors);
-        }
-        break;
-    }
+        case StorageTypes.SessionStorage:
+          try {
+            const dbData = JSON.parse(sessionStorage.getItem(dbName) || "{}");
+            const existingErrors = dbData[storeName] || [];
+            existingErrors.push({
+              id: genUUID(),
+              errors,
+              timestamp: new Date().toISOString(),
+            });
+            dbData[storeName] = existingErrors;
+            sessionStorage.setItem(dbName, JSON.stringify(dbData));
+          } catch (err) {
+            console.error("Failed to save to sessionStorage:", err);
+          }
+          break;
+        case StorageTypes.IndexedDB:
+          if (storeName === store.getState().storeName.consoleErrors) {
+            await saveConsoleErrors(errors);
+          } else if (storeName === store.getState().storeName.unhandledErrors) {
+            await saveUnhandledErrors(errors);
+          }
+          break;
+      }
+    });
   },
 };
 

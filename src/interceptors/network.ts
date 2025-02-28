@@ -7,6 +7,7 @@ import { saveNetworkLogs } from "../db/index";
 import store from "../state/store";
 import { NetWorkClient, NetworkLog, StorageType, StorageTypes } from "../types";
 import genUUID from "../utils/gen-uuid";
+import { runLowPriorityTask } from "../utils/low-priority";
 
 function getAllResponseHeaders(xhr: XMLHttpRequest): Record<string, string> {
   const headers = {};
@@ -27,36 +28,38 @@ function generateRequestId(): string {
 
 const logs = {
   async push(log: NetworkLog) {
-    const { storeName: _storeName, dbName, storageType } = store.getState();
-    const storeName = _storeName.networkLogs;
-    switch (storageType) {
-      case StorageTypes.LocalStorage:
-        try {
-          const dbData = JSON.parse(localStorage.getItem(dbName) || "{}");
-          const existingLogs = dbData[storeName] || [];
-          existingLogs.push(log);
-          dbData[storeName] = existingLogs;
-          localStorage.setItem(dbName, JSON.stringify(dbData));
-        } catch (err) {
-          console.error("Failed to save to localStorage:", err);
-        }
-        break;
+    runLowPriorityTask(async () => {
+      const { storeName: _storeName, dbName, storageType } = store.getState();
+      const storeName = _storeName.networkLogs;
+      switch (storageType) {
+        case StorageTypes.LocalStorage:
+          try {
+            const dbData = JSON.parse(localStorage.getItem(dbName) || "{}");
+            const existingLogs = dbData[storeName] || [];
+            existingLogs.push(log);
+            dbData[storeName] = existingLogs;
+            localStorage.setItem(dbName, JSON.stringify(dbData));
+          } catch (err) {
+            console.error("Failed to save to localStorage:", err);
+          }
+          break;
 
-      case StorageTypes.SessionStorage:
-        try {
-          const dbData = JSON.parse(sessionStorage.getItem(dbName) || "{}");
-          const existingLogs = dbData[storeName] || [];
-          existingLogs.push(log);
-          dbData[storeName] = existingLogs;
-          sessionStorage.setItem(dbName, JSON.stringify(dbData));
-        } catch (err) {
-          console.error("Failed to save to sessionStorage:", err);
-        }
-        break;
-      case StorageTypes.IndexedDB:
-        await saveNetworkLogs(log);
-        break;
-    }
+        case StorageTypes.SessionStorage:
+          try {
+            const dbData = JSON.parse(sessionStorage.getItem(dbName) || "{}");
+            const existingLogs = dbData[storeName] || [];
+            existingLogs.push(log);
+            dbData[storeName] = existingLogs;
+            sessionStorage.setItem(dbName, JSON.stringify(dbData));
+          } catch (err) {
+            console.error("Failed to save to sessionStorage:", err);
+          }
+          break;
+        case StorageTypes.IndexedDB:
+          await saveNetworkLogs(log);
+          break;
+      }
+    });
   },
 };
 

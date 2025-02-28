@@ -39,9 +39,9 @@ const errorLogs = {
         }
         break;
       case StorageTypes.IndexedDB:
-        if (storeName === store.getState().stores.consoleErrors) {
+        if (storeName === store.getState().storeName.consoleErrors) {
           await saveConsoleErrors(errors);
-        } else if (storeName === store.getState().stores.unhandledErrors) {
+        } else if (storeName === store.getState().storeName.unhandledErrors) {
           await saveUnhandledErrors(errors);
         }
         break;
@@ -49,36 +49,49 @@ const errorLogs = {
   },
 };
 
-export const errorFluxGlobalErrorInterceptor = ({}) => {
-  window.onerror = function (message, source, lineno, colno, error) {
-    const errorData = [
-      {
-        type: "synchronous",
-        message,
-        source,
-        lineno,
-        colno,
-        stack: error?.stack || String(error),
-        timestamp: new Date().toISOString(),
-      },
-    ];
+const errorFluxGlobalErrorInterceptor = ({
+  handleOnError,
+  handleOnUnhandledRejection,
+}: Partial<{
+  handleOnError: boolean;
+  handleOnUnhandledRejection: boolean;
+}>) => {
+  if (handleOnError)
+    window.onerror = function (message, source, lineno, colno, error) {
+      const errorData = [
+        {
+          type: "synchronous",
+          message,
+          source,
+          lineno,
+          colno,
+          stack: error?.stack || String(error),
+          timestamp: new Date().toISOString(),
+        },
+      ];
 
-    errorLogs.saveError(store.getState().stores.consoleErrors, errorData);
-  };
+      errorLogs.saveError(store.getState().storeName.consoleErrors, errorData);
+    };
 
-  window.addEventListener("unhandledrejection", function (event) {
-    const errorData = [
-      {
-        type: "promise",
-        message: event.reason?.message || "Unhandled Promise Rejection",
-        source: event.reason?.fileName || "unknown",
-        lineno: event.reason?.lineNumber || 0,
-        colno: event.reason?.columnNumber || 0,
-        stack: event.reason?.stack || String(event.reason),
-        timestamp: new Date().toISOString(),
-      },
-    ];
+  if (handleOnUnhandledRejection)
+    window.addEventListener("unhandledrejection", function (event) {
+      const errorData = [
+        {
+          type: "promise",
+          message: event.reason?.message || "Unhandled Promise Rejection",
+          source: event.reason?.fileName || "unknown",
+          lineno: event.reason?.lineNumber || 0,
+          colno: event.reason?.columnNumber || 0,
+          stack: event.reason?.stack || String(event.reason),
+          timestamp: new Date().toISOString(),
+        },
+      ];
 
-    errorLogs.saveError(store.getState().stores.unhandledErrors, errorData);
-  });
+      errorLogs.saveError(
+        store.getState().storeName.unhandledErrors,
+        errorData
+      );
+    });
 };
+
+export default errorFluxGlobalErrorInterceptor;

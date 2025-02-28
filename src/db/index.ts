@@ -10,7 +10,7 @@ import genUUID from "../utils/gen-uuid";
 
 export async function initDB(
   dbName: string,
-  stores: Stores,
+  storeName: Stores,
   dbVersion: number = 1
 ): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -27,7 +27,7 @@ export async function initDB(
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
 
-      Object.values(stores).forEach((storeName) => {
+      Object.values(storeName).forEach((storeName) => {
         if (!db.objectStoreNames.contains(storeName)) {
           db.createObjectStore(storeName, { keyPath: "id" });
         }
@@ -37,11 +37,11 @@ export async function initDB(
 }
 
 export async function saveNetworkLogs(logs: NetworkLog): Promise<void> {
-  const { dbName, stores } = store.getState();
-  const db = await initDB(dbName, stores);
+  const { dbName, storeName } = store.getState();
+  const db = await initDB(dbName, storeName);
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([stores.networkLogs], "readwrite");
-    const store = transaction.objectStore(stores.networkLogs);
+    const transaction = db.transaction([storeName.networkLogs], "readwrite");
+    const store = transaction.objectStore(storeName.networkLogs);
 
     const logEntry: NetworkLogDB = {
       id: genUUID(),
@@ -56,11 +56,11 @@ export async function saveNetworkLogs(logs: NetworkLog): Promise<void> {
 }
 
 export async function getNetworkLogs(): Promise<NetworkLogDB[]> {
-  const { dbName, stores } = store.getState();
-  const db = await initDB(dbName, stores);
+  const { dbName, storeName } = store.getState();
+  const db = await initDB(dbName, storeName);
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([stores.networkLogs], "readonly");
-    const store = transaction.objectStore(stores.networkLogs);
+    const transaction = db.transaction([storeName.networkLogs], "readonly");
+    const store = transaction.objectStore(storeName.networkLogs);
     const request = store.getAll();
 
     request.onsuccess = () => resolve(request.result);
@@ -69,11 +69,11 @@ export async function getNetworkLogs(): Promise<NetworkLogDB[]> {
 }
 
 export async function saveConsoleErrors(errors: any[]): Promise<void> {
-  const { dbName, stores } = store.getState();
-  const db = await initDB(dbName, stores);
+  const { dbName, storeName } = store.getState();
+  const db = await initDB(dbName, storeName);
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([stores.consoleErrors], "readwrite");
-    const store = transaction.objectStore(stores.consoleErrors);
+    const transaction = db.transaction([storeName.consoleErrors], "readwrite");
+    const store = transaction.objectStore(storeName.consoleErrors);
 
     const errorEntry: ConsoleErrorDB = {
       id: genUUID(),
@@ -88,11 +88,11 @@ export async function saveConsoleErrors(errors: any[]): Promise<void> {
 }
 
 export async function getConsoleErrors(): Promise<ConsoleErrorDB[]> {
-  const { dbName, stores } = store.getState();
-  const db = await initDB(dbName, stores);
+  const { dbName, storeName } = store.getState();
+  const db = await initDB(dbName, storeName);
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([stores.consoleErrors], "readonly");
-    const store = transaction.objectStore(stores.consoleErrors);
+    const transaction = db.transaction([storeName.consoleErrors], "readonly");
+    const store = transaction.objectStore(storeName.consoleErrors);
     const request = store.getAll();
 
     request.onsuccess = () => resolve(request.result);
@@ -102,11 +102,14 @@ export async function getConsoleErrors(): Promise<ConsoleErrorDB[]> {
 }
 
 export async function saveUnhandledErrors(errors: any[]): Promise<void> {
-  const { dbName, stores } = store.getState();
-  const db = await initDB(dbName, stores);
+  const { dbName, storeName } = store.getState();
+  const db = await initDB(dbName, storeName);
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([stores.unhandledErrors], "readwrite");
-    const store = transaction.objectStore(stores.unhandledErrors);
+    const transaction = db.transaction(
+      [storeName.unhandledErrors],
+      "readwrite"
+    );
+    const store = transaction.objectStore(storeName.unhandledErrors);
 
     const errorEntry: UnhandledErrorDB = {
       id: genUUID(),
@@ -122,11 +125,11 @@ export async function saveUnhandledErrors(errors: any[]): Promise<void> {
 }
 
 export async function getUnhandledErrors(): Promise<UnhandledErrorDB[]> {
-  const { dbName, stores } = store.getState();
-  const db = await initDB(dbName, stores);
+  const { dbName, storeName } = store.getState();
+  const db = await initDB(dbName, storeName);
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction([stores.unhandledErrors], "readonly");
-    const store = transaction.objectStore(stores.unhandledErrors);
+    const transaction = db.transaction([storeName.unhandledErrors], "readonly");
+    const store = transaction.objectStore(storeName.unhandledErrors);
     const request = store.getAll();
 
     request.onsuccess = () => resolve(request.result);

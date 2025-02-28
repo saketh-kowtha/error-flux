@@ -5,7 +5,7 @@ import { ErrorFluxState, StorageTypes } from "../types";
 
 const defaultState: ErrorFluxState = {
   dbName: "ErrorFluxDB",
-  stores: {
+  storeName: {
     networkLogs: "networkLogs",
     consoleErrors: "consoleErrors",
     unhandledErrors: "unhandledErrors",

@@ -32,14 +32,12 @@ export enum NetWorkClient {
 
 export interface ErrorFluxState {
   dbName: string;
-  stores: {
-    networkLogs: string;
-    consoleErrors: string;
-    unhandledErrors: string;
-  };
   pattern: string | RegExp;
   allowOnlyNetworkErrors: boolean;
   storageType: StorageType;
+  storeName: Stores;
+  handleOnError?: boolean;
+  handleOnUnhandledRejection?: boolean;
 }
 
 export interface NetworkLogDB {

@@ -27,13 +27,13 @@ function generateRequestId(): string {
 
 const logs = {
   async push(log: NetworkLog) {
-    const { stores, dbName, storageType } = store.getState();
-    const storeName = stores.networkLogs;
+    const { storeName: _storeName, dbName, storageType } = store.getState();
+    const storeName = _storeName.networkLogs;
     switch (storageType) {
       case StorageTypes.LocalStorage:
         try {
           const dbData = JSON.parse(localStorage.getItem(dbName) || "{}");
-          const existingLogs = dbData[stores.networkLogs] || [];
+          const existingLogs = dbData[storeName] || [];
           existingLogs.push(log);
           dbData[storeName] = existingLogs;
           localStorage.setItem(dbName, JSON.stringify(dbData));

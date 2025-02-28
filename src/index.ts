@@ -1,6 +1,7 @@
+import errorFluxGlobalErrorInterceptor from "./interceptors/global-error";
 import errorFluxNetworkInterceptor from "./interceptors/network";
 import store from "./state/store";
-import { StorageType, Stores } from "./types";
+import { ErrorFluxState } from "./types";
 
 export default function initErrorFlux({
   pattern,
@@ -8,18 +9,14 @@ export default function initErrorFlux({
   storeName,
   dbName,
   storageType,
-}: {
-  pattern: string | RegExp;
-  allowOnlyNetworkErrors?: boolean;
-  storeName?: Stores;
-  dbName?: string;
-  storageType?: StorageType;
-}) {
+  handleOnError,
+  handleOnUnhandledRejection,
+}: ErrorFluxState) {
   store.setState({
     dbName: dbName || store.getState().dbName,
     storageType: storageType || store.getState().storageType,
-    stores: {
-      ...store.getState().stores,
+    storeName: {
+      ...store.getState().storeName,
       ...(Object.keys(storeName || {}).length > 0 ? storeName : {}),
     },
   });
@@ -27,6 +24,11 @@ export default function initErrorFlux({
   const { getLogs: getNetworkLogs } = errorFluxNetworkInterceptor({
     pattern,
     onlyFailures: allowOnlyNetworkErrors,
+  });
+
+  errorFluxGlobalErrorInterceptor({
+    handleOnError,
+    handleOnUnhandledRejection,
   });
 
   return {

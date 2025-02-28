@@ -10,6 +10,9 @@ dependencies:
     version: 5.1.0
 
 devDependencies:
+  '@types/nanoid':
+    specifier: ^2.1.0
+    version: 2.1.0
   '@types/node':
     specifier: ^22.13.4
     version: 22.13.4
@@ -678,6 +681,12 @@ packages:
 
   /@types/estree@1.0.6:
     resolution: {integrity: sha512-AYnb1nQyY49te+VRAVgmzfcgjYS91mY5P0TKUDCLEM+gNnA+3T6rWITXRLYCpahpqSQbN5cE+gHpnPyXjHWxcw==}
+    dev: true
+
+  /@types/nanoid@2.1.0:
+    resolution: {integrity: sha512-xdkn/oRTA0GSNPLIKZgHWqDTWZsVrieKomxJBOQUK9YDD+zfSgmwD5t4WJYra5S7XyhTw7tfvwznW+pFexaepQ==}
+    dependencies:
+      '@types/node': 22.13.4
     dev: true
 
   /@types/node@22.13.4:

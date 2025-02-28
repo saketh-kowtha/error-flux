@@ -1,164 +1,136 @@
-import { NetworkLog } from "../types";
+import store from "../state/store";
+import {
+  ConsoleErrorDB,
+  NetworkLog,
+  NetworkLogDB,
+  Stores,
+  UnhandledErrorDB,
+} from "../types";
 import genUUID from "../utils/gen-uuid";
 
-interface NetworkLogDB {
-  id: string;
-  logs: NetworkLog[];
+export async function initDB(
+  dbName: string,
+  stores: Stores,
+  dbVersion: number = 1
+): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(dbName, dbVersion);
+
+    request.onerror = () => {
+      reject(new Error("Failed to open database"));
+    };
+
+    request.onsuccess = (event) => {
+      resolve((event.target as IDBOpenDBRequest).result);
+    };
+
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+
+      Object.values(stores).forEach((storeName) => {
+        if (!db.objectStoreNames.contains(storeName)) {
+          db.createObjectStore(storeName, { keyPath: "id" });
+        }
+      });
+    };
+  });
 }
 
-interface ConsoleErrorDB {
-  id: string;
-  errors: any[];
+export async function saveNetworkLogs(logs: NetworkLog): Promise<void> {
+  const { dbName, stores } = store.getState();
+  const db = await initDB(dbName, stores);
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([stores.networkLogs], "readwrite");
+    const store = transaction.objectStore(stores.networkLogs);
+
+    const logEntry: NetworkLogDB = {
+      id: genUUID(),
+      logs,
+    };
+
+    const request = store.add(logEntry);
+
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(new Error("Failed to save logs"));
+  });
 }
 
-interface UnhandledErrorDB {
-  id: string;
-  errors: any[];
+export async function getNetworkLogs(): Promise<NetworkLogDB[]> {
+  const { dbName, stores } = store.getState();
+  const db = await initDB(dbName, stores);
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([stores.networkLogs], "readonly");
+    const store = transaction.objectStore(stores.networkLogs);
+    const request = store.getAll();
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(new Error("Failed to retrieve logs"));
+  });
 }
 
-export class IndexedDBManager {
-  private dbName: string;
-  private dbVersion = 1;
-  private stores: Record<string, string>;
+export async function saveConsoleErrors(errors: any[]): Promise<void> {
+  const { dbName, stores } = store.getState();
+  const db = await initDB(dbName, stores);
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([stores.consoleErrors], "readwrite");
+    const store = transaction.objectStore(stores.consoleErrors);
 
-  constructor(
-    dbName: string,
-    stores: Record<"consoleErrors" | "networkLogs" | "unhandledErrors", string>
-  ) {
-    this.dbName = dbName;
-    this.stores = stores;
-  }
+    const errorEntry: ConsoleErrorDB = {
+      id: genUUID(),
+      errors,
+    };
 
-  async initDB(): Promise<IDBDatabase> {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.dbVersion);
+    const request = store.add(errorEntry);
 
-      request.onerror = () => {
-        reject(new Error("Failed to open database"));
-      };
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(new Error("Failed to save console errors"));
+  });
+}
 
-      request.onsuccess = (event) => {
-        resolve((event.target as IDBOpenDBRequest).result);
-      };
+export async function getConsoleErrors(): Promise<ConsoleErrorDB[]> {
+  const { dbName, stores } = store.getState();
+  const db = await initDB(dbName, stores);
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([stores.consoleErrors], "readonly");
+    const store = transaction.objectStore(stores.consoleErrors);
+    const request = store.getAll();
 
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () =>
+      reject(new Error("Failed to retrieve console errors"));
+  });
+}
 
-        Object.values(this.stores).forEach((storeName) => {
-          if (!db.objectStoreNames.contains(storeName)) {
-            db.createObjectStore(storeName, { keyPath: "id" });
-          }
-        });
-      };
-    });
-  }
+export async function saveUnhandledErrors(errors: any[]): Promise<void> {
+  const { dbName, stores } = store.getState();
+  const db = await initDB(dbName, stores);
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([stores.unhandledErrors], "readwrite");
+    const store = transaction.objectStore(stores.unhandledErrors);
 
-  async saveNetworkLogs(logs: NetworkLog[]): Promise<void> {
-    const db = await this.initDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(
-        [this.stores.networkLogs],
-        "readwrite"
-      );
-      const store = transaction.objectStore(this.stores.networkLogs);
+    const errorEntry: UnhandledErrorDB = {
+      id: genUUID(),
+      errors,
+    };
 
-      const logEntry: NetworkLogDB = {
-        id: genUUID(),
-        logs,
-      };
+    const request = store.add(errorEntry);
 
-      const request = store.add(logEntry);
+    request.onsuccess = () => resolve();
+    request.onerror = () =>
+      reject(new Error("Failed to save unhandled errors"));
+  });
+}
 
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(new Error("Failed to save logs"));
-    });
-  }
+export async function getUnhandledErrors(): Promise<UnhandledErrorDB[]> {
+  const { dbName, stores } = store.getState();
+  const db = await initDB(dbName, stores);
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([stores.unhandledErrors], "readonly");
+    const store = transaction.objectStore(stores.unhandledErrors);
+    const request = store.getAll();
 
-  async getNetworkLogs(): Promise<NetworkLogDB[]> {
-    const db = await this.initDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([this.stores.networkLogs], "readonly");
-      const store = transaction.objectStore(this.stores.networkLogs);
-      const request = store.getAll();
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(new Error("Failed to retrieve logs"));
-    });
-  }
-
-  async saveConsoleErrors(errors: any[]): Promise<void> {
-    const db = await this.initDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(
-        [this.stores.consoleErrors],
-        "readwrite"
-      );
-      const store = transaction.objectStore(this.stores.consoleErrors);
-
-      const errorEntry: ConsoleErrorDB = {
-        id: genUUID(),
-        errors,
-      };
-
-      const request = store.add(errorEntry);
-
-      request.onsuccess = () => resolve();
-      request.onerror = () =>
-        reject(new Error("Failed to save console errors"));
-    });
-  }
-
-  async getConsoleErrors(): Promise<ConsoleErrorDB[]> {
-    const db = await this.initDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(
-        [this.stores.consoleErrors],
-        "readonly"
-      );
-      const store = transaction.objectStore(this.stores.consoleErrors);
-      const request = store.getAll();
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () =>
-        reject(new Error("Failed to retrieve console errors"));
-    });
-  }
-
-  async saveUnhandledErrors(errors: any[]): Promise<void> {
-    const db = await this.initDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(
-        [this.stores.unhandledErrors],
-        "readwrite"
-      );
-      const store = transaction.objectStore(this.stores.unhandledErrors);
-
-      const errorEntry: UnhandledErrorDB = {
-        id: genUUID(),
-        errors,
-      };
-
-      const request = store.add(errorEntry);
-
-      request.onsuccess = () => resolve();
-      request.onerror = () =>
-        reject(new Error("Failed to save unhandled errors"));
-    });
-  }
-
-  async getUnhandledErrors(): Promise<UnhandledErrorDB[]> {
-    const db = await this.initDB();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(
-        [this.stores.unhandledErrors],
-        "readonly"
-      );
-      const store = transaction.objectStore(this.stores.unhandledErrors);
-      const request = store.getAll();
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () =>
-        reject(new Error("Failed to retrieve unhandled errors"));
-    });
-  }
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () =>
+      reject(new Error("Failed to retrieve unhandled errors"));
+  });
 }

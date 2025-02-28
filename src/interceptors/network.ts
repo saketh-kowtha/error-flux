@@ -3,7 +3,9 @@
  * Captures all XHR & Fetch calls, logging success & error cases.
  */
 
-import { NetWorkClient, NetworkLog } from "../types";
+import { saveNetworkLogs } from "../db/index";
+import store from "../state/store";
+import { NetWorkClient, NetworkLog, StorageType, StorageTypes } from "../types";
 import genUUID from "../utils/gen-uuid";
 
 function getAllResponseHeaders(xhr: XMLHttpRequest): Record<string, string> {
@@ -23,15 +25,50 @@ function generateRequestId(): string {
   return genUUID();
 }
 
+const logs = {
+  async push(log: NetworkLog) {
+    const { stores, dbName, storageType } = store.getState();
+    const storeName = stores.networkLogs;
+    switch (storageType) {
+      case StorageTypes.LocalStorage:
+        try {
+          const dbData = JSON.parse(localStorage.getItem(dbName) || "{}");
+          const existingLogs = dbData[stores.networkLogs] || [];
+          existingLogs.push(log);
+          dbData[storeName] = existingLogs;
+          localStorage.setItem(dbName, JSON.stringify(dbData));
+        } catch (err) {
+          console.error("Failed to save to localStorage:", err);
+        }
+        break;
+
+      case StorageTypes.SessionStorage:
+        try {
+          const dbData = JSON.parse(sessionStorage.getItem(dbName) || "{}");
+          const existingLogs = dbData[storeName] || [];
+          existingLogs.push(log);
+          dbData[storeName] = existingLogs;
+          sessionStorage.setItem(dbName, JSON.stringify(dbData));
+        } catch (err) {
+          console.error("Failed to save to sessionStorage:", err);
+        }
+        break;
+      case StorageTypes.IndexedDB:
+        await saveNetworkLogs(log);
+        break;
+    }
+  },
+};
+
 const errorFluxNetworkInterceptor = ({
   pattern,
+  onlyFailures = false,
 }: {
   pattern: string | RegExp;
+  onlyFailures?: boolean;
 }) => {
   const originalFetch = window.fetch;
   const originalXHR = window.XMLHttpRequest;
-  const logs: NetworkLog[] = [];
-
   window.fetch = async function (input: RequestInfo | URL, init?: RequestInit) {
     const requestId = generateRequestId();
     const startTime = performance.now();
@@ -40,7 +77,10 @@ const errorFluxNetworkInterceptor = ({
       .then(async (response) => {
         const clonedResponse = response.clone();
         const responseData = await clonedResponse.text();
-        if (clonedResponse.url.match(pattern)) {
+        if (
+          clonedResponse.url.match(pattern) &&
+          (!onlyFailures || (onlyFailures && !clonedResponse.ok))
+        ) {
           logs.push({
             id: requestId,
             type: NetWorkClient.Fetch,
@@ -118,6 +158,11 @@ const errorFluxNetworkInterceptor = ({
     send(body: Document | XMLHttpRequestBodyInit | null) {
       this.startTime = performance.now();
       this.addEventListener("loadend", () => {
+        const isFailure = !(this.status >= 200 && this.status < 300);
+        if (!this._url.match(pattern) || (onlyFailures && !isFailure)) {
+          return;
+        }
+
         logs.push({
           id: this.requestId,
           type: NetWorkClient.XHR,
@@ -128,24 +173,26 @@ const errorFluxNetworkInterceptor = ({
           responseBody: this.responseText,
           status: this.status,
           duration: performance.now() - (this.startTime as number),
-          success: this.status >= 200 && this.status < 300,
+          success: !isFailure,
           cookies: document.cookie,
         });
       });
 
       this.addEventListener("error", () => {
-        logs.push({
-          id: this.requestId,
-          type: NetWorkClient.XHR,
-          url: this._url,
-          method: this._method,
-          error: "Network error",
-          duration: performance.now() - (this.startTime as number),
-          success: false,
-          requestBody: null,
-          cookies: document.cookie,
-          status: this.status,
-        });
+        if (this._url.match(pattern)) {
+          logs.push({
+            id: this.requestId,
+            type: NetWorkClient.XHR,
+            url: this._url,
+            method: this._method,
+            error: "Network error",
+            duration: performance.now() - (this.startTime as number),
+            success: false,
+            requestBody: null,
+            cookies: document.cookie,
+            status: this.status,
+          });
+        }
       });
 
       super.send(body);
@@ -156,7 +203,6 @@ const errorFluxNetworkInterceptor = ({
 
   return {
     getLogs: () => logs,
-    clearLogs: () => (logs.length = 0),
   };
 };
 

@@ -1,0 +1,97 @@
+name: Node.js Package
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+          cache: "npm"
+      - run: npm ci
+    #   - run: npm test
+
+  publish-npm:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build package
+        run: npm run build
+
+      - name: Set up Git user
+        run: |
+          git config --global user.name "${{secrets.GIT_AUTO_USER_NAME}}"
+          git config --global user.email "${{secrets.GIT_AUTO_USER_EMAIL}}"
+
+      - name: Check for commit message keywords
+        id: version-bump
+        run: |
+          COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+          if [[ "$COMMIT_MESSAGE" =~ ^feat: ]]; then
+            echo "Bumping minor version (feature)"
+            echo "bump=minor" >> $GITHUB_OUTPUT
+          elif [[ "$COMMIT_MESSAGE" =~ "BREAKING CHANGE:" ]]; then
+            echo "Bumping major version (breaking change)"
+            echo "bump=major" >> $GITHUB_OUTPUT
+          else
+            echo "Bumping patch version (fix)"
+            echo "bump=patch" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Bump version
+        run: |
+          VERSION_BUMP="${{ steps.version-bump.outputs.bump || 'patch' }}"
+          echo "Bumping version: $VERSION_BUMP"
+          npm version $VERSION_BUMP -m "chore: bump version to %s [skip ci]"
+          echo "NEW_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+
+      - name: Check if version is already published
+        id: check_version
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          NPM_VERSIONS=$(npm view "$PACKAGE_NAME" versions --json 2>/dev/null || echo "[]")
+
+          if echo "$NPM_VERSIONS" | jq -e ". | index(\"$PACKAGE_VERSION\")" >/dev/null; then
+            echo "Version $PACKAGE_VERSION is already published."
+            echo "skip_publish=true" >> $GITHUB_ENV
+          else
+            echo "Publishing version $PACKAGE_VERSION..."
+            echo "skip_publish=false" >> $GITHUB_ENV
+          fi
+
+      - name: Push changes and tags
+        run: git push --follow-tags
+
+      - name: Publish to npm
+        if: env.skip_publish == 'false'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+
+      - name: Success message
+        if: env.skip_publish == 'false'
+        run: echo "✅ Package published successfully!"

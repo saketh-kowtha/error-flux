@@ -1,7 +1,7 @@
 {
   "name": "error-flux",
   "description": "Network request interceptor and logger for web applications",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "module": "./src/index.ts",
   "main": "./dist/index.js",
   "types": "./dist/types/index.d.ts",
@@ -11,7 +11,7 @@
   ],
   "scripts": {
     "build": "node esbuild.config.mjs",
-    "prepare": "pnpm run build"
+    "prepare": "npm run build"
   },
   "keywords": [
     "network",

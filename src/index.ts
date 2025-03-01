@@ -1,7 +1,7 @@
 import errorFluxGlobalErrorInterceptor from "./interceptors/global-error";
 import errorFluxNetworkInterceptor from "./interceptors/network";
 import store from "./state/store";
-import { ErrorFluxState } from "./types";
+import { ErrorFluxState, StorageTypes } from "./types";
 
 export default function initErrorFlux({
   pattern,
@@ -26,12 +26,15 @@ export default function initErrorFlux({
     onlyFailures: allowOnlyNetworkErrors,
   });
 
-  errorFluxGlobalErrorInterceptor({
+  const { getLogs: getErrorLogs } = errorFluxGlobalErrorInterceptor({
     handleOnError,
     handleOnUnhandledRejection,
   });
 
   return {
     getNetworkLogs,
+    getErrorLogs,
   };
 }
+
+export { StorageTypes, ErrorFluxState };

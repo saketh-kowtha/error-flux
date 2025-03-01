@@ -21,7 +21,7 @@ const errorLogs = {
             dbData[storeName] = existingErrors;
             localStorage.setItem(dbName, JSON.stringify(dbData));
           } catch (err) {
-            console.error("Failed to save to localStorage:", err);
+            console.warn("Failed to save to localStorage:", err);
           }
           break;
 
@@ -37,7 +37,7 @@ const errorLogs = {
             dbData[storeName] = existingErrors;
             sessionStorage.setItem(dbName, JSON.stringify(dbData));
           } catch (err) {
-            console.error("Failed to save to sessionStorage:", err);
+            console.warn("Failed to save to sessionStorage:", err);
           }
           break;
         case StorageTypes.IndexedDB:
@@ -95,6 +95,63 @@ const errorFluxGlobalErrorInterceptor = ({
         errorData
       );
     });
+
+  const getLogs = () => {
+    const { storeName: storeNameObj, dbName, storageType } = store.getState();
+    const consoleErrorsStoreName = storeNameObj.consoleErrors;
+    const unhandledErrorsStoreName = storeNameObj.unhandledErrors;
+
+    const getConsoleErrors = async () => {
+      switch (storageType) {
+        case StorageTypes.IndexedDB:
+          return await getConsoleErrors();
+        case StorageTypes.LocalStorage:
+          return (
+            JSON.parse(localStorage.getItem(dbName) || "{}")?.[
+              consoleErrorsStoreName
+            ] || []
+          );
+        case StorageTypes.SessionStorage:
+          return (
+            JSON.parse(sessionStorage.getItem(dbName) || "{}")?.[
+              consoleErrorsStoreName
+            ] || []
+          );
+        default:
+          return [];
+      }
+    };
+
+    const getUnhandledErrors = async () => {
+      switch (storageType) {
+        case StorageTypes.IndexedDB:
+          return await getUnhandledErrors();
+        case StorageTypes.LocalStorage:
+          return (
+            JSON.parse(localStorage.getItem(dbName) || "{}")?.[
+              unhandledErrorsStoreName
+            ] || []
+          );
+        case StorageTypes.SessionStorage:
+          return (
+            JSON.parse(sessionStorage.getItem(dbName) || "{}")?.[
+              unhandledErrorsStoreName
+            ] || []
+          );
+        default:
+          return [];
+      }
+    };
+
+    return {
+      getConsoleErrors,
+      getUnhandledErrors,
+    };
+  };
+
+  return {
+    getLogs,
+  };
 };
 
 export default errorFluxGlobalErrorInterceptor;

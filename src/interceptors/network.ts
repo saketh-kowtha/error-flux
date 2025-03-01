@@ -3,7 +3,7 @@
  * Captures all XHR & Fetch calls, logging success & error cases.
  */
 
-import { saveNetworkLogs } from "../db/index";
+import { getNetworkLogs, saveNetworkLogs } from "../db/index";
 import store from "../state/store";
 import { NetWorkClient, NetworkLog, StorageType, StorageTypes } from "../types";
 import genUUID from "../utils/gen-uuid";
@@ -40,7 +40,7 @@ const logs = {
             dbData[storeName] = existingLogs;
             localStorage.setItem(dbName, JSON.stringify(dbData));
           } catch (err) {
-            console.error("Failed to save to localStorage:", err);
+            console.warn("Failed to save to localStorage:", err);
           }
           break;
 
@@ -52,7 +52,7 @@ const logs = {
             dbData[storeName] = existingLogs;
             sessionStorage.setItem(dbName, JSON.stringify(dbData));
           } catch (err) {
-            console.error("Failed to save to sessionStorage:", err);
+            console.warn("Failed to save to sessionStorage:", err);
           }
           break;
         case StorageTypes.IndexedDB:
@@ -204,8 +204,24 @@ const errorFluxNetworkInterceptor = ({
 
   window.XMLHttpRequest = InterceptedXHR;
 
+  const getLogs = async () => {
+    const { storeName: storeNameObj, dbName, storageType } = store.getState();
+    const storeName = storeNameObj.networkLogs;
+    switch (storageType) {
+      case StorageTypes.IndexedDB:
+        return await getNetworkLogs();
+      case StorageTypes.LocalStorage:
+        return (
+          JSON.parse(localStorage.getItem(dbName) || "{}")?.[storeName] || []
+        );
+      case StorageTypes.SessionStorage:
+        return (
+          JSON.parse(sessionStorage.getItem(dbName) || "{}")?.[storeName] || []
+        );
+    }
+  };
   return {
-    getLogs: () => logs,
+    getLogs,
   };
 };
 

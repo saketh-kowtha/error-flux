@@ -2,6 +2,7 @@ import errorFluxGlobalErrorInterceptor from "./interceptors/global-error";
 import errorFluxNetworkInterceptor from "./interceptors/network";
 import store from "./state/store";
 import { ErrorFluxState, StorageTypes } from "./types";
+import { getDbName } from "./utils/store-helpers";
 
 export default function initErrorFlux({
   pattern,
@@ -13,7 +14,7 @@ export default function initErrorFlux({
   handleOnUnhandledRejection,
 }: ErrorFluxState) {
   store.setState({
-    dbName: dbName || store.getState().dbName,
+    dbName: dbName || getDbName(),
     storageType: storageType || store.getState().storageType,
     storeName: {
       ...store.getState().storeName,

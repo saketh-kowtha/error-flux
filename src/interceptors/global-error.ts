@@ -3,6 +3,10 @@ import { saveUnhandledErrors, saveConsoleErrors } from "../db/index";
 import store from "../state/store";
 import genUUID from "../utils/gen-uuid";
 import { runLowPriorityTask } from "../utils/low-priority";
+import {
+  getConsoleErrorStoreName,
+  getUnhandledErrorStoreName,
+} from "../utils/store-helpers";
 
 const errorLogs = {
   async saveError(storeName: string, errors: any[]) {
@@ -41,9 +45,9 @@ const errorLogs = {
           }
           break;
         case StorageTypes.IndexedDB:
-          if (storeName === store.getState().storeName.consoleErrors) {
+          if (storeName === getConsoleErrorStoreName()) {
             await saveConsoleErrors(errors);
-          } else if (storeName === store.getState().storeName.unhandledErrors) {
+          } else if (storeName === getUnhandledErrorStoreName()) {
             await saveUnhandledErrors(errors);
           }
           break;
@@ -73,7 +77,7 @@ const errorFluxGlobalErrorInterceptor = ({
         },
       ];
 
-      errorLogs.saveError(store.getState().storeName.consoleErrors, errorData);
+      errorLogs.saveError(getConsoleErrorStoreName(), errorData);
     };
 
   if (handleOnUnhandledRejection)
